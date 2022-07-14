@@ -5,6 +5,7 @@ from fastai.data.block import DataBlock, CategoryBlock
 from fastai.data.transforms import RandomSplitter
 from fastai.vision.data import ImageBlock
 from fastai.vision.augment import RandomResizedCrop, Resize
+from fastai.metrics import accuracy, F1Score
 
 from rich.console import Console
 console = Console()
@@ -19,7 +20,6 @@ class DictionaryGetter:
 
     def __call__(self, key):
         value = self.dictionary[key]
-        print(key, value)
         return value
 
 
@@ -30,7 +30,6 @@ class DictionaryPathGetter:
 
     def __call__(self, key):
         value =  self.base_path/self.dictionary[key]
-        print(key, value)
         return value
 
 
@@ -79,12 +78,8 @@ class Hespias(VisionApp):
         for image_dict in metadata["images"]:
             image_id_to_path[image_dict['id']] = image_dict['file_name']
 
-            if max_images and len(image_id_to_path) >= max_images:
-                break
-
-        print("image ids:")
-        image_ids = list(image_id_to_path.keys())
-        print(image_ids)
+        # image_ids = list(image_id_to_path.keys())
+        image_ids = []
 
         print("Getting Ys")
         image_id_to_order = {}
@@ -92,20 +87,33 @@ class Hespias(VisionApp):
         image_id_to_category = {}
         for annotation in metadata['annotations']:
             image_id = annotation['image_id']
-            if image_id not in image_ids:
-                continue
+            # if image_id not in image_ids:
+            #     continue
             category = annotation['category_id']
             image_id_to_order[image_id] = category_to_order[category]
             image_id_to_family[image_id] = category_to_family[category]
             image_id_to_category[image_id] = category
+
+            if category_to_order[category] in ['Brassicales', 'Fabales', 'Asterales']:
+                image_ids.append(image_id)
         
+        if max_images and len(image_ids) >= max_images:
+            image_ids = image_ids[:max_images]
+
+
+        # for x in image_ids:
+        #     print(x)
+        #     print('image_id_to_path', image_id_to_path[x])
+        #     print('image_id_to_order', image_id_to_order[x])
+        # breakpoint()
+
         print("Building datablock")
         datablock = DataBlock(
             blocks=[ImageBlock, CategoryBlock],
             get_x=DictionaryPathGetter(image_id_to_path, train_dir),
             get_y=DictionaryGetter(image_id_to_order),
             splitter=RandomSplitter(validation_proportion),
-            # item_tfms=Resize(256),
+            item_tfms=RandomResizedCrop(256),
         )
 
         print("Building dataloaders")
@@ -115,3 +123,8 @@ class Hespias(VisionApp):
 
         return dataloaders
 
+    def metrics(self):
+        return [accuracy, F1Score(average="macro")]
+
+    def monitor(self):
+        return "f1_score"
