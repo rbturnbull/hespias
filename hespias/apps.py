@@ -45,10 +45,13 @@ class Hespias(VisionApp):
             default=0.2,
             help="The proportion of the dataset to keep for validation. Used if `validation_column` is not in the dataset.",
         ),
+        width: int = fa.Param(default=224, help="The width to resize all the images to."),
+        height: int = fa.Param(default=224, help="The height to resize all the images to."),
         max_images:int = fa.Param(
             default=None,
             help="The maximum number of images to use for training and validation (if set).",
         ),
+
     ) -> DataLoaders:
         """
         Creates a FastAI DataLoaders object which Hespias uses in training and prediction.
@@ -73,7 +76,6 @@ class Hespias(VisionApp):
             category_to_family[category_dict['id']] = category_dict["family"]
         
         print("Getting Image Paths")
-        print('max_images', max_images)
         image_id_to_path = {}
         for image_dict in metadata["images"]:
             image_id_to_path[image_dict['id']] = image_dict['file_name']
@@ -100,25 +102,17 @@ class Hespias(VisionApp):
         if max_images and len(image_ids) >= max_images:
             image_ids = image_ids[:max_images]
 
-
-        # for x in image_ids:
-        #     print(x)
-        #     print('image_id_to_path', image_id_to_path[x])
-        #     print('image_id_to_order', image_id_to_order[x])
-        # breakpoint()
-
         print("Building datablock")
         datablock = DataBlock(
             blocks=[ImageBlock, CategoryBlock],
             get_x=DictionaryPathGetter(image_id_to_path, train_dir),
             get_y=DictionaryGetter(image_id_to_order),
             splitter=RandomSplitter(validation_proportion),
-            item_tfms=RandomResizedCrop(256),
+            item_tfms=RandomResizedCrop((height, width)),
         )
 
         print("Building dataloaders")
         dataloaders = datablock.dataloaders(image_ids, bs=batch_size)
-
         print("finished building dataloaders")
 
         return dataloaders
