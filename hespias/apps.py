@@ -1,3 +1,4 @@
+from functools import partial
 from pathlib import Path
 from fastai.data.core import DataLoaders
 from fastai.data.block import DataBlock, CategoryBlock
@@ -75,8 +76,8 @@ class Hespias(VisionApp):
         print("Building datablock")
         datablock = DataBlock(
             blocks=[ImageBlock, CategoryBlock],
-            get_x=self.metadata.get_x,
-            get_y=self.metadata.get_y,
+            get_x=DictionaryGetter(self.metadata.get_image),
+            get_y=DictionaryGetter(self.metadata.image_id_to_node_id),
             splitter=RandomSplitter(validation_proportion),
             item_tfms=RandomResizedCrop((height, width)),
         )
@@ -93,7 +94,7 @@ class Hespias(VisionApp):
         return HierarchicalSoftmaxLoss(root=self.metadata.root)
 
     def metrics(self):
-        return [metrics.greedy_accuracy(root=self.metadata.root), metrics.greedy_f1_score(root=self.metadata.root)]
+        return [partial(metrics.greedy_accuracy, root=self.metadata.root), partial(metrics.greedy_f1_score, root=self.metadata.root)]
 
     def monitor(self):
         return "greedy_f1_score"

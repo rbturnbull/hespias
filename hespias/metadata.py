@@ -3,7 +3,7 @@ from hierarchicalsoftmax import SoftmaxNode
 
 class MetadataManager():
     def __init__(self, train_dir):
-        super().__init__("metadata")
+        super().__init__()
 
         self.train_dir = train_dir
         with open(train_dir/"metadata.json", 'r') as f:
@@ -32,25 +32,20 @@ class MetadataManager():
             category = SoftmaxNode(name=category_name, category_id=category_id, type="category", parent=family)
             self.get_category[category_id] = category
 
+        self.root.set_indexes()
+
         print("Reading Images")
         for image_dict in metadata["images"]:
             image_id = image_dict['id']
-            self.get_image[image_id] = image_dict['file_name']
+            self.get_image[image_id] = self.train_dir/image_dict['file_name']
 
         print("Reading Annotations")
         for annotation in metadata['annotations']:
             image_id = annotation['image_id']
-            image = self.get_image[image_id]
 
             category = self.get_category[annotation['category_id']]
-            node_id = self.node_to_id[category]
+            node_id = self.root.node_to_id[category]
             self.image_id_to_node_id[image_id] = node_id
-
-    def get_x(self, image_id:int):
-        return self.train_dir/self.get_image[image_id]
-
-    def get_y(self, image_id:int):
-        return self.image_id_to_node_id[image_id]
 
     def image_ids(self):
         return list(self.get_image.keys())
