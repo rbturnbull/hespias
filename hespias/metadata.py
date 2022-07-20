@@ -1,55 +1,7 @@
 import json
-from dataclasses import dataclass
-from collections import defaultdict
+from hierarchicalsoftmax import SoftmaxNode
 
-
-class Item():
-    def __init__(self, name):
-        self.name = name
-        self.children = []
-        self.index_in_parent = None
-        self.parent = None
-        self.softmax_start_index = None
-
-    def add_child(self, child):
-        assert child.index_in_parent is None
-        assert child.parent is None
-        child.index_in_parent = len(self.children)
-        child.parent = self
-        self.children.append(child)
-        return child
-
-    def set_softmax_start_index(self, current_index):
-        assert self.softmax_start_index is None
-        self.softmax_start_index = current_index
-        current_index += len(self.children)
-        self.softmax_end_index = current_index
-        current_index += 
-        current_index
-
-
-class Image(Item):
-    def __init__(self, image_id, path, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.image_id = image_id
-        self.path = path
-
-
-class Category(Item):
-    def __init__(self, category_id, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.category_id = category_id
-
-
-class Family(Item):
-    pass
-
-
-class Order(Item):
-    pass
-
-
-class MetadataManager(Item):
+class MetadataManager():
     def __init__(self, train_dir):
         super().__init__("metadata")
 
@@ -58,36 +10,32 @@ class MetadataManager(Item):
             metadata = json.load(f)
 
         print("Getting Hierarchies")
-        self.category_to_order = {}
-        self.category_to_family = {}
         self.get_category = {}
         self.get_image = {}
+        self.image_id_to_node_id = {}
+        self.root = SoftmaxNode(name="root")
 
         print("Categories")
         for category_dict in metadata['categories']:
             category_name = category_dict["order"]
-            order = self.get_child_by_name(category_name)
+            order = self.root.get_child_by_name(category_name)
             if not order:
-                order = Order(name=category_name)
-                self.add_child(order)
+                order = SoftmaxNode(name=category_name, type="order", parent=self.root)
 
             family_name = category_dict["family"]
-            family = self.get_child_by_name(family_name)
+            family = order.get_child_by_name(family_name)
             if not family:
-                family = Family(name=family_name)
-                order.add_child(family)
+                family = SoftmaxNode(name=family_name, type="family", parent=order)
 
             category_name = category_dict["family"]
             category_id = category_dict['id']
-            category = Category(name=category_name, category_id=category_id)
+            category = SoftmaxNode(name=category_name, category_id=category_id, type="category", parent=family)
             self.get_category[category_id] = category
 
         print("Reading Images")
         for image_dict in metadata["images"]:
             image_id = image_dict['id']
-            path = image_dict['file_name']
-            image = Image(image_id=image_id, path=path)
-            self.get_image[image_id] = image
+            self.get_image[image_id] = image_dict['file_name']
 
         print("Reading Annotations")
         for annotation in metadata['annotations']:
@@ -95,36 +43,14 @@ class MetadataManager(Item):
             image = self.get_image[image_id]
 
             category = self.get_category[annotation['category_id']]
-            category.add_child(image)
+            node_id = self.node_to_id[category]
+            self.image_id_to_node_id[image_id] = node_id
 
-        self.category_id_to_family_index = {}
-        current_index = len(self.orders)
-        self.family_start = {}
-        self.family_end = {}
-        for order in self.children:
-            self.family_start[order.index_in_parent] = current_index
-            current_index += len(order.children)
-            self.family_end[order.index_in_parent] = current_index
+    def get_x(self, image_id:int):
+        return self.train_dir/self.get_image[image_id]
 
-            for family in order.children:
-                self.category_start[family.index_in_parent] = current_index
-                current_index += len(family.children)
-                self.category_end[family.index_in_parent] = current_index
+    def get_y(self, image_id:int):
+        return self.image_id_to_node_id[image_id]
 
-    def get_path(self, image:Image):
-        return self.train_dir/image.path
-
-    def get_order(self, image:Image):
-        return image.parent.parent.parent.index_in_parent
-
-    def order_count(self):
-        return len(self.children)
-
-    
-
-        # family_start,
-        # family_end,
-        # family_index,
-        # category_start,
-        # category_end,
-        # category_index,
+    def image_ids(self):
+        return list(self.get_image.keys())

@@ -1,11 +1,9 @@
-import json
 from pathlib import Path
 from fastai.data.core import DataLoaders
 from fastai.data.block import DataBlock, CategoryBlock
 from fastai.data.transforms import RandomSplitter
 from fastai.vision.data import ImageBlock
 from fastai.vision.augment import RandomResizedCrop, Resize
-from fastai.metrics import accuracy, F1Score
 
 from rich.console import Console
 console = Console()
@@ -13,6 +11,8 @@ console = Console()
 import fastapp as fa
 from fastapp.vision import VisionApp
 from .metadata import MetadataManager
+from hierarchicalsoftmax import HierarchicalSoftmaxLoss
+from hierarchicalsoftmax import metrics
 
 
 class DictionaryGetter:
@@ -67,7 +67,7 @@ class Hespias(VisionApp):
         train_dir = Path(train_dir)
         
         self.metadata = MetadataManager(train_dir)
-        image_ids = self.metadata.image_ids
+        image_ids = self.metadata.image_ids()
 
         if max_images and len(image_ids) >= max_images:
             image_ids = image_ids[:max_images]
@@ -75,20 +75,25 @@ class Hespias(VisionApp):
         print("Building datablock")
         datablock = DataBlock(
             blocks=[ImageBlock, CategoryBlock],
-            get_x=self.metadata.get_path,
-            get_y=self.metadata.get_order,
+            get_x=self.metadata.get_x,
+            get_y=self.metadata.get_y,
             splitter=RandomSplitter(validation_proportion),
             item_tfms=RandomResizedCrop((height, width)),
         )
 
         print("Building dataloaders")
         dataloaders = datablock.dataloaders(image_ids, bs=batch_size)
+        dataloaders.c = self.metadata.root.layer_size
+
         print("finished building dataloaders")
 
         return dataloaders
 
+    def get_loss(self):
+        return HierarchicalSoftmaxLoss(root=self.metadata.root)
+
     def metrics(self):
-        return [accuracy, F1Score(average="macro")]
+        return [metrics.greedy_accuracy(root=self.metadata.root), metrics.greedy_f1_score(root=self.metadata.root)]
 
     def monitor(self):
-        return "f1_score"
+        return "greedy_f1_score"

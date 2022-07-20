@@ -9,6 +9,7 @@ readme = "README.rst"
 [tool.poetry.dependencies]
 python = "^3.8"
 fastapp = {git = "https://github.com/rbturnbull/fastapp.git", branch = "main"}
+hierarchicalsoftmax = {git = "https://github.com/rbturnbull/hierarchicalsoftmax.git", rev = "main"}
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
