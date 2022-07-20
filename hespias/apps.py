@@ -12,6 +12,7 @@ console = Console()
 
 import fastapp as fa
 from fastapp.vision import VisionApp
+from .metadata import MetadataManager
 
 
 class DictionaryGetter:
@@ -64,49 +65,18 @@ class Hespias(VisionApp):
             DataLoaders: The DataLoaders object.
         """
         train_dir = Path(train_dir)
-        with open(train_dir/"metadata.json", 'r') as f:
-            metadata = json.load(f)
-
-        print("Getting Hierarchies")
-        category_to_order = {}
-        category_to_family = {}
-
-        for category_dict in metadata['categories']:
-            category_to_order[category_dict['id']] = category_dict["order"]
-            category_to_family[category_dict['id']] = category_dict["family"]
         
-        print("Getting Image Paths")
-        image_id_to_path = {}
-        for image_dict in metadata["images"]:
-            image_id_to_path[image_dict['id']] = image_dict['file_name']
+        self.metadata = MetadataManager(train_dir)
+        image_ids = self.metadata.image_ids
 
-        # image_ids = list(image_id_to_path.keys())
-        image_ids = []
-
-        print("Getting Ys")
-        image_id_to_order = {}
-        image_id_to_family = {}
-        image_id_to_category = {}
-        for annotation in metadata['annotations']:
-            image_id = annotation['image_id']
-            # if image_id not in image_ids:
-            #     continue
-            category = annotation['category_id']
-            image_id_to_order[image_id] = category_to_order[category]
-            image_id_to_family[image_id] = category_to_family[category]
-            image_id_to_category[image_id] = category
-
-            if category_to_order[category] in ['Brassicales', 'Fabales', 'Asterales']:
-                image_ids.append(image_id)
-        
         if max_images and len(image_ids) >= max_images:
             image_ids = image_ids[:max_images]
 
         print("Building datablock")
         datablock = DataBlock(
             blocks=[ImageBlock, CategoryBlock],
-            get_x=DictionaryPathGetter(image_id_to_path, train_dir),
-            get_y=DictionaryGetter(image_id_to_order),
+            get_x=self.metadata.get_path,
+            get_y=self.metadata.get_order,
             splitter=RandomSplitter(validation_proportion),
             item_tfms=RandomResizedCrop((height, width)),
         )
