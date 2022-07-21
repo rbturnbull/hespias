@@ -2,11 +2,11 @@ import json
 from hierarchicalsoftmax import SoftmaxNode
 
 class MetadataManager():
-    def __init__(self, train_dir):
+    def __init__(self, train_dir, metadata_filename="metadata.json"):
         super().__init__()
 
         self.train_dir = train_dir
-        with open(train_dir/"metadata.json", 'r') as f:
+        with open(train_dir/metadata_filename, 'r') as f:
             metadata = json.load(f)
 
         print("Getting Hierarchies")

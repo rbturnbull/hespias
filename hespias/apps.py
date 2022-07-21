@@ -11,9 +11,10 @@ console = Console()
 
 import fastapp as fa
 from fastapp.vision import VisionApp
-from .metadata import MetadataManager
 from hierarchicalsoftmax import HierarchicalSoftmaxLoss
 from hierarchicalsoftmax import metrics
+
+from .metadata import MetadataManager
 
 
 class DictionaryGetter:
@@ -53,7 +54,7 @@ class Hespias(VisionApp):
             default=None,
             help="The maximum number of images to use for training and validation (if set).",
         ),
-
+        metadata_filename:str = fa.Param(default="metadata.json", help="The name of the metadata JSON to use. Default 'metadata.json'"),
     ) -> DataLoaders:
         """
         Creates a FastAI DataLoaders object which Hespias uses in training and prediction.
@@ -67,7 +68,7 @@ class Hespias(VisionApp):
         """
         train_dir = Path(train_dir)
         
-        self.metadata = MetadataManager(train_dir)
+        self.metadata = MetadataManager(train_dir, metadata_filename=metadata_filename)
         image_ids = self.metadata.image_ids()
 
         if max_images and len(image_ids) >= max_images:
@@ -94,7 +95,12 @@ class Hespias(VisionApp):
         return HierarchicalSoftmaxLoss(root=self.metadata.root)
 
     def metrics(self):
-        return [partial(metrics.greedy_accuracy, root=self.metadata.root), partial(metrics.greedy_f1_score, root=self.metadata.root)]
+        return [
+            partial(metrics.greedy_accuracy, root=self.metadata.root), 
+            partial(metrics.greedy_f1_score, root=self.metadata.root),
+            partial(metrics.greedy_accuracy_depth_one, root=self.metadata.root), 
+            partial(metrics.greedy_accuracy_depth_two, root=self.metadata.root), 
+        ]
 
     def monitor(self):
-        return "greedy_f1_score"
+        return "greedy_accuracy_depth_one"
