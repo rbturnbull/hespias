@@ -26,16 +26,6 @@ class DictionaryGetter:
         return value
 
 
-class DictionaryPathGetter:
-    def __init__(self, dictionary, base_path):
-        self.dictionary = dictionary
-        self.base_path = base_path
-
-    def __call__(self, key):
-        value =  self.base_path/self.dictionary[key]
-        return value
-
-
 class Hespias(VisionApp):
     """
     A herbarium specimen classifier.
@@ -49,7 +39,7 @@ class Hespias(VisionApp):
             help="The proportion of the dataset to keep for validation. Used if `validation_column` is not in the dataset.",
         ),
         width: int = fa.Param(default=224, help="The width to resize all the images to."),
-        height: int = fa.Param(default=224, help="The height to resize all the images to."),
+        height: int = fa.Param(default=None, help="The height to resize all the images to."),
         max_images:int = fa.Param(
             default=None,
             help="The maximum number of images to use for training and validation (if set).",
@@ -73,6 +63,11 @@ class Hespias(VisionApp):
 
         if max_images and len(image_ids) >= max_images:
             image_ids = image_ids[:max_images]
+
+        if height is None:
+            height = int(width/self.metadata.mean_aspect_ratio)
+            
+        print(f"Setting height and width to {height} and {height}")
 
         print("Building datablock")
         datablock = DataBlock(

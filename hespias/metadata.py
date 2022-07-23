@@ -47,5 +47,15 @@ class MetadataManager():
             node_id = self.root.node_to_id[category]
             self.image_id_to_node_id[image_id] = node_id
 
+        print("Determining Mean Aspect Ratio")
+        self.mean_aspect_ratio = 0.0
+        for image in metadata['images']:
+            small_side = min(image['width'], image['height'])
+            long_side = max(image['width'], image['height'])
+            self.mean_aspect_ratio += small_side/long_side
+        self.mean_aspect_ratio /= len(metadata['images'])
+
+
     def image_ids(self):
         return list(self.get_image.keys())
+
